@@ -1,6 +1,6 @@
 # 21 Feb 2019
 # Touqeer Anjum
-# Script to fully automate Domain Controller server configuration with new Forest implementation
+# Script to fully automate Domain Controller server configuration
 
 New-NetIPAddress –InterfaceAlias Ethernet0 –IPAddress 192.168.204.11 –PrefixLength 24 -DefaultGateway 192.168.204.35
 
