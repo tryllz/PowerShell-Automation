@@ -1,0 +1,68 @@
+# 21 Feb 2019
+# Touqeer Anjum
+# Script to fully automate Domain Controller server configuration with new Forest implementation
+
+New-NetIPAddress –InterfaceAlias Ethernet0 –IPAddress 172.28.204.11 –PrefixLength 24 -DefaultGateway 172.28.204.35
+
+Set-DnsClientServerAddress -InterfaceAlias Ethernet0 -ServerAddresses 172.28.204.11
+
+rename-computer AbbeydorneyDC1
+
+$path = [Environment]::GetFolderPath("Desktop") + "\AddForest.ps1"
+New-Item $path -ItemType File
+Set-Content -Path $path -Value @'
+Install-WindowsFeature -name AD-Domain-Services -IncludeManagementTools
+
+Install-ADDSForest `
+-CreateDnsDelegation:$false `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "WinThreshold" `
+-DomainName "electric-petrol.ie" `
+-DomainNetbiosName "ELECTRIC-PETROL" `
+-ForestMode "WinThreshold" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NoRebootOnCompletion:$false `
+-SysvolPath "C:\Windows\SYSVOL" `
+-Force:$true `
+-SafeModeAdministratorPassword (ConvertTo-SecureString -String 'Passw0rd!' -Force -AsPlainText)
+
+$pathb = [Environment]::GetFolderPath("Desktop") + "\RestartNetworkServices.ps1"
+Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "AddForest"
+Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "RestartNetworkServices" -Value "powershell.exe $pathb"
+
+write-host "deleting used files.."
+$path = [Environment]::GetFolderPath("Desktop") + "\AddForest.ps1"
+Remove-Item -Path $path -Force
+
+restart-computer
+'@
+
+$pathb = [Environment]::GetFolderPath("Desktop") + "\RestartNetworkServices.ps1"
+New-Item $pathb -ItemType File
+Set-Content -Path $pathb -Value @'
+Restart-Service -Name NlaSvc -force
+
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Remove-ItemProperty $RegPath -Name "AutoAdminLogon"
+Remove-ItemProperty $RegPath -Name "DefaultUsername"
+Remove-ItemProperty $RegPath -Name "DefaultPassword"
+
+Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "RestartNetworkServices"
+
+write-host "deleting used files.."
+$pathb = [Environment]::GetFolderPath("Desktop") + "\RestartNetworkServices.ps1"
+Remove-Item -Path $pathb -Force
+'@
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Set-ItemProperty $RegPath "AutoAdminLogon" -Value "1"
+Set-ItemProperty $RegPath "DefaultUsername" -Value "Administrator" -type String  
+Set-ItemProperty $RegPath "DefaultPassword" -Value "Passw0rd!" -type String
+
+Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "AddForest" -Value "powershell.exe $path"
+
+write-host "deleting used files.."
+$pathd = [Environment]::GetFolderPath("Desktop") + "\Abbeydorney_DC1.ps1"
+Remove-Item -Path $pathd -Force
+
+restart-computer
