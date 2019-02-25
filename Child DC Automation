@@ -1,0 +1,96 @@
+# 22 Feb 2019
+# Touqeer Anjum
+# Script to fully automate Child Domain Controller server configuration joining the Forest Domain Controller
+
+New-NetIPAddress –InterfaceAlias Ethernet0 –IPAddress 192.168.2.15 –PrefixLength 24 -DefaultGateway 192.168.2.35
+
+Set-DnsClientServerAddress -InterfaceAlias Ethernet0 -ServerAddresses 192.168.2.11
+
+$srvr = "AbbeydorneyDC2"
+rename-computer $srvr
+
+$patha = [Environment]::GetFolderPath("Desktop") + "\JoinDomain.ps1"
+New-Item $patha -ItemType File
+Set-Content -Path $patha  -Value @'
+$srvr = "AbbeydorneyDC2"
+$domname = "electric-petrol.ie"
+$dom = ($domname).Remove(15,3)
+$pass = convertto-securestring -string "Passw0rd!" -asplaintext -force
+$cred = New-Object System.Management.Automation.PSCredential -argumentlist ("$dom\Administrator", $pass)
+add-computer -domainname $domname -Credential $cred
+
+Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "JoinDomain"
+
+$pathb = [Environment]::GetFolderPath("Desktop") + "\JoinForest.ps1"
+Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "JoinForest" -Value "powershell.exe $pathb"
+
+write-host "deleting used files.."
+$pathc = [Environment]::GetFolderPath("Desktop") + "\JoinDomain.ps1"
+Remove-Item -Path $pathc -Force
+
+restart-computer
+'@
+
+$pathc = [Environment]::GetFolderPath("Desktop") + "\JoinForest.ps1"
+New-Item $pathc -ItemType File
+Set-Content -Path $pathc -Value @'
+$srvr = "AbbeydorneyDC2"
+$domname = "electric-petrol.ie"
+$dom = ($domname).Remove(15,3)
+$pass = convertto-securestring -string "Passw0rd!" -asplaintext -force
+$cred = New-Object System.Management.Automation.PSCredential -argumentlist ("$dom\Administrator", $pass)
+
+Install-WindowsFeature -name AD-Domain-Services -IncludeManagementTools
+
+Import-Module ADDSDeployment
+Install-ADDSDomain `
+-credential $cred `
+-NoGlobalCatalog:$false `
+-CreateDnsDelegation:$true `
+-DatabasePath "C:\Windows\NTDS" `
+-DomainMode "WinThreshold" `
+-InstallDns:$true `
+-LogPath "C:\Windows\NTDS" `
+-NewDomainName "Abbeydorney" `
+-DomainType "ChildDomain" `
+-ParentDomainName $domname `
+-NoRebootOnCompletion:$false `
+-SiteName "Abbeydorney" `
+-SysvolPath "C:\Windows\SYSVOL" `
+-safemodeadministratorpassword $pass `
+-Force:$true
+
+Install-WindowsFeature -Name 'DHCP' –IncludeManagementTools
+
+w32tm /config /manualpeerlist:[192.168.2.11],0x8 /syncfromflags:MANUAL
+w32tm /config /update
+net stop w32time
+net start w32time
+w32tm /resync
+
+Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "JoinForest"
+
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Remove-ItemProperty $RegPath -Name "AutoAdminLogon"
+Remove-ItemProperty $RegPath -Name "DefaultUsername"
+Remove-ItemProperty $RegPath -Name "DefaultPassword"
+
+write-host "deleting used files.."
+$pathc = [Environment]::GetFolderPath("Desktop") + "\JoinForest.ps1"
+Remove-Item -Path $pathc -Force
+
+restart-computer
+'@
+
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Set-ItemProperty $RegPath "AutoAdminLogon" -Value "1"
+Set-ItemProperty $RegPath "DefaultUsername" -Value "Administrator" -type String  
+Set-ItemProperty $RegPath "DefaultPassword" -Value "Passw0rd!" -type String
+
+Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "JoinDomain" -Value "powershell.exe $patha"
+
+write-host "deleting used files.."
+$pathd = [Environment]::GetFolderPath("Desktop") + "\Abbeydorney_DC2.ps1"
+Remove-Item -Path $pathd -Force
+
+restart-computer
