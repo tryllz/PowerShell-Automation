@@ -2,9 +2,9 @@
 # Touqeer Anjum
 # Script to fully automate Domain Controller server configuration
 
-New-NetIPAddress –InterfaceAlias Ethernet0 –IPAddress 192.168.204.11 –PrefixLength 24 -DefaultGateway 192.168.204.35
+New-NetIPAddress –InterfaceAlias Ethernet0 –IPAddress 192.168.2.11 –PrefixLength 24 -DefaultGateway 192.168.2.35
 
-Set-DnsClientServerAddress -InterfaceAlias Ethernet0 -ServerAddresses 192.168.204.11
+Set-DnsClientServerAddress -InterfaceAlias Ethernet0 -ServerAddresses 192.168.2.11
 
 rename-computer AbbeydorneyDC1
 
@@ -13,6 +13,7 @@ New-Item $path -ItemType File
 Set-Content -Path $path -Value @'
 Install-WindowsFeature -name AD-Domain-Services -IncludeManagementTools
 
+Import-Module ADDSDeployment
 Install-ADDSForest `
 -CreateDnsDelegation:$false `
 -DatabasePath "C:\Windows\NTDS" `
@@ -25,7 +26,7 @@ Install-ADDSForest `
 -NoRebootOnCompletion:$false `
 -SysvolPath "C:\Windows\SYSVOL" `
 -Force:$true `
--SafeModeAdministratorPassword (ConvertTo-SecureString -String 'HuuD8419' -Force -AsPlainText)
+-SafeModeAdministratorPassword (ConvertTo-SecureString -String 'Passw0rd!' -Force -AsPlainText)
 
 $pathb = [Environment]::GetFolderPath("Desktop") + "\RestartNetworkServices.ps1"
 Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "AddForest"
@@ -54,10 +55,11 @@ write-host "deleting used files.."
 $pathb = [Environment]::GetFolderPath("Desktop") + "\RestartNetworkServices.ps1"
 Remove-Item -Path $pathb -Force
 '@
+
 $RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 Set-ItemProperty $RegPath "AutoAdminLogon" -Value "1"
 Set-ItemProperty $RegPath "DefaultUsername" -Value "Administrator" -type String  
-Set-ItemProperty $RegPath "DefaultPassword" -Value "HuuD8419" -type String
+Set-ItemProperty $RegPath "DefaultPassword" -Value "Passw0rd!" -type String
 
 Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "AddForest" -Value "powershell.exe $path"
 
