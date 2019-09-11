@@ -1,0 +1,32 @@
+# Wed 11 Sep 2019
+# This script is created to automate suspension and resumption of VMs in VMware workstation
+
+if (Get-Process vmware -ErrorAction silentlycontinue) # Checks if VMware Workstation is running
+  {
+    cd "C:\Program Files (x86)\VMware\VMware Workstation" # Changes directory in terminal to vmware
+    $RunningVMs = .\vmrun list | select-object -skip 1 # Get the list of running VMs suspended in VMware Workstation
+    Foreach ($RunningVM in $RunningVMs)
+  {
+    "Suspending $RunningVM..."
+    .\vmrun suspend "$RunningVM" # Suspends running VMs
+  }
+  "Quitting VMWare Workstation.."
+  Stop-Process -Name vmware # Closes Workstation after VMs suspension
+ }
+else
+  {
+    "Opening VMWare Workstation.."
+    Start-Process -FilePath "C:\Program Files (x86)\VMware\VMware Workstation\vmware.exe" -WindowStyle Maximized # If Workstation is nor running, starts Workstation
+    cd "C:\Program Files (x86)\VMware\VMware Workstation" # Changes directory in terminal to vmware
+    $Checkvmems = gci -Include *.vmem -Recurse -Path D:\VIRTUALMACHINES # Searches folders in the Path for vmem files only
+    Foreach ($Checkvmem in $Checkvmems)
+  {
+    $FolderPath = [System.IO.Path]::GetDirectoryName("$Checkvmem") # Gets the directory path of each folder with a vmem file (For suspended VMs files)
+    $SuspendedVMs = gci -Include *.vmx -Recurse -Path $FolderPath # Searches for vmx files in folders that have a vmem file
+    Foreach ($SuspendedVM in $SuspendedVMs)
+  {
+    "Resuming $SuspendedVM"
+    .\vmrun start "$SuspendedVM" # Resumes VMs
+  }
+ }
+}
